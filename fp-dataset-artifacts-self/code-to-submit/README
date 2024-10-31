@@ -1,0 +1,15 @@
+KEY FOR FILES
+
+main-data-spreadsheet.xlsx    = spreadsheet used for aggregate statistic calculations as shown in report
+convert-p1-breaking-nli.py    = convert the glockner dataset into a format usable for the given codebase
+convert-p1-mccoy.py           = covert the mccoy dataset into a format usable for the given codebase
+createMergedSnliMccoyTrain.py = combining the SNLI training set with 60% of the mccoy dataset for part 2 of the report
+jsonltoexcel.py               = generic script to convert output statistics from the models into a tsb for absorption into main-data-spreadsheet
+lexsubdetect.py               = detect lexical overlap and subsequence examples for a given dataset
+lexthreshdetect.py            = detect lexical overlap examples based on % threshold (not always 100) for a given dataset. I did not end up using this for analysis
+morejsontoexcel.py            = exporting categories from the glockner and mccoy datasets for use in main-data-spreadsheet
+
+
+fp.ipynb = Google colab notebook used for part 1
+ta.ipynb Google colab notebook used for part 2 (TextAttack part)
+combine_snli_mccoy.ipynb = Google colab notebook used for part 2 (combined mccoy and snli part)
