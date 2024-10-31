@@ -1,0 +1,19 @@
+Writing logs to ./trained_model_ta_tf/train_log.txt.
+Wrote original training args to ./trained_model_ta_tf/training_args.json.
+***** Running training *****
+  Num examples = 549367
+  Num epochs = 3
+  Num clean epochs = 1
+  Instantaneous batch size per device = 8
+  Total train batch size (w. parallel, distributed & accumulation) = 8
+  Gradient accumulation steps = 1
+  Total optimization steps = 343355
+==========================================================
+Epoch 1
+Running clean epoch 1/1
+Train accuracy: 81.94%
+Eval accuracy: 87.55%
+Best score found. Saved model to ./trained_model_ta_tf//best_model/
+==========================================================
+Epoch 2
+Attacking model to generate new adversarial training set...

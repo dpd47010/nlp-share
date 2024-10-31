@@ -1,0 +1,693 @@
+%
+% File acl2019.tex
+%
+%% Based on the style files for ACL 2018, NAACL 2018/19, which were
+%% Based on the style files for ACL-2015, with some improvements
+%%  taken from the NAACL-2016 style
+%% Based on the style files for ACL-2014, which were, in turn,
+%% based on ACL-2013, ACL-2012, ACL-2011, ACL-2010, ACL-IJCNLP-2009,
+%% EACL-2009, IJCNLP-2008...
+%% Based on the style files for EACL 2006 by 
+%%e.agirre@ehu.es or Sergi.Balari@uab.es
+%% and that of ACL 08 by Joakim Nivre and Noah Smith
+
+\documentclass[11pt,a4paper]{article}
+\usepackage[hyperref]{acl2019}
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage{tablefootnote}
+\usepackage{booktabs}
+\usepackage{multirow}
+
+
+\usepackage{url}
+
+\aclfinalcopy % Uncomment this line for the final submission
+%\def\aclpaperid{***} %  Enter the acl Paper ID here
+
+%\setlength\titlebox{5cm}
+% You can expand the titlebox if you need extra space
+% to show all the authors. Please do not make the titlebox
+% smaller than 5cm (the original size); we will check this
+% in the camera-ready version and ask you to change it back.
+
+\newcommand\BibTeX{B\textsc{ib}\TeX}
+
+\title{Adversarial Attacks and Training on ELECTRA-small}
+
+\author{Devon DeBalsi \\
+  The University of Texas at Austin - CS388 Natural Language Processing Fall 2023 \\
+  \texttt{devondebalsi@utexas.edu} }
+
+\date{}
+
+\begin{document}
+\maketitle
+
+%%%%%%%%%%
+\begin{abstract}
+%%%%%%%%%%
+This project's goal is to improve the performance of ELECTRA-small \cite{DBLP:journals/corr/abs-2003-10555}, applied for natural language inference, on sentence pairs with significant lexical overlap. I show ELECTRA-small can adopt shallow lexical overlap-based heuristics when trained on an unmodified version of the Stanford Natural Language Inference (SNLI) corpus \cite{bowman-etal-2015-large}. I propose two methods to improve performance of ELECTRA-small trained on the SNLI corpus on sentence pairs with lexical overlap: dynamically generating adversarial examples during training, and statically constructing a training corpus that combines SNLI and sentence pairs with lexical overlap. Using a development dataset containing sentence pairs with lexical overlap \cite{DBLP:journals/corr/abs-1902-01007}, the former method led to no significant improvement on accuracy compared to training on unmodified SNLI, staying at roughly 50\% on a dataset from McCoy et al. (2019). The latter method boosted accuracy to nearly 100\% on the same data from McCoy et al. (2019).
+\end{abstract}
+
+%%%%%%%%%%
+\section{Introduction}
+%%%%%%%%%%
+Transformer-based models can capture alignment between words, because self-attention mechanisms allow all words in a phrase to attend to each-other \cite{DBLP:journals/corr/VaswaniSPUJGKP17}. Therefore, transformer-based models are a common choice for natural language inference (NLI) \cite{maccartney-manning-2008-modeling} tasks. The NLI task is defined as follows: given a premise sentence, identify the most likely of three labels \textit{entailment}, \textit{contradiction}, and \textit{neutral} for a hypothesis sentence; put simply, assigning probability to if a hypothesis is true given a premise. Literature \cite{zhou-bansal-2020-towards}, \cite{mendelson-belinkov-2021-debiasing}, \cite{DBLP:journals/corr/abs-1902-01007} shows that despite the self-attention mechanism, transformer-based models are still subject to adopting heuristics that subvert the expectation of capturing alignment between words -- specifically, heuristics based on lexical overlap between sentence pairs.
+
+The baseline model used for NLI for this project, ELECTRA-small \cite{DBLP:journals/corr/abs-2003-10555}, is a transformer-based model. ELECTRA-small trains with the goal of predicting replacement or non-replacement of each token in a corrupted input. ELECTRA-small shares architecture with BERT \cite{DBLP:journals/corr/abs-1810-04805}, but compared to training a model to remake replaced input tokens, ELECTRA-small's goal enables comparatively more efficient training. Therefore, ELECTRA-small is a suitable choice for an environment with limited computing resources. The Stanford Natural Language Inference (SNLI) corpus \cite{bowman-etal-2015-large}, a dataset of 570,000 sentence pairs, is a commonly used dataset for training models to perform NLI. Prior research highlights that NLI models trained on SNLI can adopt shallow heuristics \cite{gururangan-etal-2018-annotation}, \cite{DBLP:journals/corr/abs-2201-07614}. The SNLI model specifically contains a disproportionately small set of sentence pairs with lexical overlap, and the examples present do not pose difficult syntactic challenges to the model, such as subject-object swapping. The small number lexical overlap examples present are also disproportionately gold-labeled with entailment.
+
+This report is split into two main sections. The first section shows that the ELECTRA-small model performs adequately on the SNLI development set after training on the SNLI corpus, but struggles with accuracy on sentence pairs with lexical overlap, such as examples in the dataset from McCoy et al. (2019). The first section also presents analysis on the characteristics of the SNLI corpus that contribute to the aforementioned poor performance on sentence pairs with lexical overlap. The second section details two methods for training on adversarial data: dynamic generation during training and static corpus construction. The section closes with analysis on these two methods' ability to drive better performance by ELECTRA-small on sentence pairs with lexical overlap. I propose that training on adversarial data is an effective way to avoid ELECTRA-small adopting shallow lexical overlap heuristics, but specific care needs to be taken when generating adversarial data for training to include examples of non-entailment gold-label hypotheses that are not prevalent in the SNLI corpus.
+
+%%%%%%%%%%
+\section{ELECTRA-small and SNLI: Struggles with Adversarial Attacks}
+%%%%%%%%%%
+In order to analyze ELECTRA-small's NLI performance to find focus areas to improve, I chose to train using the SNLI corpus. I used 55,0153 of the sentence pairs of the SNLI corpus for training. I used the Google Colab platform with a V100 GPU to conduct training. After 3 epochs of training, evaluation on a held-out development set from the SNLI corpus, denoted as \texttt{SNLI-dev}, yielded an evaluation accuracy of 89.23\%. Thorough analysis on this result, as well as model performance categorization, follows in the \hyperref[sec:evaluation]{Evaluation Results} section.
+
+%%%%%%%%%%
+\subsection{Evaluation Results}
+%%%%%%%%%%
+
+\subsubsection{Evaluation Results Summary}
+\label{sec:evaluation}
+\begin{table}[hbt!]
+\begin{center}
+\tiny
+\begin{tabular}{p{0.12\textwidth}|p{0.05\textwidth} p{0.05\textwidth} p{0.05\textwidth} p{0.05\textwidth}}
+  \textbf{Evaluation Dataset} & \textbf{Size} & \textbf{Correct} & \textbf{Incorrect} & \textbf{Accuracy} (\%)\\
+  \hline
+  \textbf{SNLI-dev} \tablefootnote{\cite{bowman-etal-2015-large}} & 9842 & 8782 & 1060 & 89.23 \\
+  \textbf{glockner-acl18} \tablefootnote{\cite{glockner_acl18}} & 8193 & 7584 & 609 & 92.57 \\
+  \textbf{mccoy-etal-2019} \tablefootnote{\cite{DBLP:journals/corr/abs-1902-01007}} & 30000 & 15443 & 14557 & 51.48 \\
+\end{tabular}
+\end{center}
+\caption{Evaluation Performance of ELECTRA-small trained for three epochs on three evaluation datasets. \textit{Correct} refers to the count of examples for the row's dataset that the model correctly predicted the gold-label. \textit{Incorrect} refers to the count of examples for the row's dataset that the model incorrectly predicts the gold-label.}
+\end{table}
+
+Table 1 shows the three development datasets I used to evaluate the trained model's performance. \texttt{SNLI-dev} is the development set held out from the SNLI corpus. \texttt{glockner-acl18} and \texttt{mccoy-etal-2019} are both adversarial challenge sets. Detailed explanation of these datasets and analysis of the results follows in the \hyperref[sec:acsd]{following section}.
+
+%%%%%%%%%%
+\subsubsection{Adversarial Challenge Sets Description}
+\label{sec:acsd}
+%%%%%%%%%%
+
+The model's 89.23\% evaluation accuracy on \texttt{SNLI-dev} was as expected per the project specification. Therefore, to further analyze ELECTRA-small's performance, I chose to evaluate using \texttt{glockner-acl18}. This dataset contains examples with sentence pairs that contain no more than one different word, and specifically swaps words in the following categories: antonyms, cardinals, nationalities, drinks, colors, ordinals, countries, rooms, materials, vegetables, instruments, and planets \cite{DBLP:journals/corr/abs-1805-02266}. For example:
+
+\begin{table}[hbt!]
+\begin{center}
+\begin{tabular}{p{0.45\textwidth} p{0.45\textwidth}}
+  \textit{Premise}: Several women stand on a platform near the yellow line \\
+  \textit{Hypothesis}: Several women stand on a platform near the red line
+\end{tabular}
+\end{center}
+\end{table}
+
+Glockner et al. (2018) report that numerous NLI models suffer a downgrade in performance on the \texttt{glockner-acl18} dataset as compared to the standard SNLI set, but BERT and ELECTRA-small are not included in their analysis. By evaluating the ELECTRA-small model trained on SNLI using \texttt{glocker-acl18} , I hoped to determine if the model was able to perform well on a dataset that strains lexical knowledge based on the categories of substitutions summarized above.
+
+Detailed statistics and analysis follows in the \hyperref[sec:ec]{Error Categories} and \hyperref[sec:rd]{Results Discussion} sections, but after observing the 92.57\% accuracy (Table 1) on \texttt{glockner-acl18}, I chose to also evaluate the trained model's performance on \texttt{mccoy-etal-2019}. This dataset contains a robust set of adversarial challenges focused on exploiting heuristics based on syntactic properties, namely lexical overlap. McCoy et al. (2019) present BERT's poor performance on this dataset, so I suspected that ELECTRA-small would struggle with the dataset, meaning I could obtain meaningful insight into specific categories of errors the model makes. My suspicions were confirmed, as the model was only 51.48\% accurate on this dataset (Table 1). Note that the \texttt{mccoy-etal-2019} has only two possible gold labels: entailment and contradiction (no neutral).
+
+%%%%%%%%%%
+\subsubsection{Error Categories}
+\label{sec:ec}
+%%%%%%%%%%
+To start my analysis, I used the following definitions of three broad error categories, from which I derived more specific subcategories:
+
+\begin{itemize}
+\tiny
+  \item \textbf{False positives} (FPos) = model predicted entailment, gold label is either neutral or contradiction
+  \item \textbf{False neutrals} (FNeut) = model predicted neutral, gold label is either entailment or contradiction
+  \item \textbf{False negatives} (FNeg) = model predicted contradiction, gold label is either entailment or neutral
+\end{itemize}
+
+In the context of deriving more specific subcategories, I decided to discard using the \texttt{glockner-acl18} results centered around swapping one word as described in the \hyperref[sec:acsd]{Adversarial Challenge Sets Description} section because of the model's strong performance on the dataset. Given the main task was to identify flaws in the model and drive improvement, this was an appropriate decision. See Table 13 in the \hyperref[sec:appendix]{Appendix} for full SNLI-trained ELECTRA-small \texttt{glockner-acl18} evaluation results.
+
+Results from evaluating ELECTRA-small's performance on \texttt{mccoy-etal-2019} provide meaningful insight into syntactic properties the model struggles to encode. Consider the following error subcategories, to branch off the false positives, false neutrals, and false negatives categories, defined using McCoy et al. (2019)'s insights:
+\begin{itemize}
+\tiny
+  \item \textbf{Lexical overlap} = the hypothesis contains all words also in the premise, not necessarily in the same order; the hypothesis may also contain other words not in the premise
+  \item \textbf{Subsequence} = the hypothesis contains all words also in the premise in the same order; the hypothesis may also contain other words not in the premise
+\end{itemize}
+
+From the definitions above, clearly subsequence is a subset of lexical overlap. For the remainder of this report, lexical overlap example counts should be understood to also include subsequence example counts. Note that McCoy et al. (2019) also define a constituent error category, a subset of subsequence and thus also of lexical overlap, that I chose to not include in my analysis to keep the scope of this project manageable. 
+
+Referring to Table 1, I chose to focus my error subcategory performance from examples in the \texttt{mccoy-etal-2019} dataset because of the model's poor performance on dataset as compared to \texttt{SNLI-dev} and \texttt{glockner-acl18}. Table 2 shows the performance of ELECTRA-small \texttt{mccoy-etal-2019} with respect to the broad error categories \{\textit{false positives}, \textit{false neutrals}, \textit{false negatives}\} and the error subcategories \{\textit{lexical overlap}, \textit{subsequence}\}. Table 3 shows the same, but referencing the \texttt{SNLI-dev} evaluation dataset. The discrepancies in both subcategory counts and model accuracy between datasets is explored in \hyperref[sec:rd]{Results Discussion}.
+
+\begin{table}[hbt!]
+\begin{center}
+\begin{tabular}
+{p{0.07\textwidth}|p{0.05\textwidth} p{0.05\textwidth} p{0.05\textwidth} p{0.05\textwidth} p{0.05\textwidth} }
+  \hline
+  {\tiny \textbf{Subcategory}} & {\tiny \textbf{Total} \textbf{Count}} & {\tiny \textbf{Accuracy} {\%}} & {\tiny \textbf{FPos}} & {\tiny \textbf{FNeut}} & {\tiny \textbf{FNeg}} \\
+
+  {\tiny \textbf{Lexical Overlap}} & {\tiny 10000} & {\tiny 53.36} & {\tiny 4460} & {\tiny 5} & {\tiny 199} \\
+
+  {\tiny \textbf{Subsequence}} & {\tiny 10000} & {\tiny 50.77} & {\tiny 4912} & {\tiny 0} & {\tiny 11} \\
+\end{tabular}
+\end{center}
+\caption{\texttt{mccoy-etal-2019} ELECTRA-small (SNLI-trained) performance with respect to the error categories and subcategories described in this section. Recall the dataset has no neutral gold labels, and that subsequence is a subset of lexical overlap. Therefore, the count for lexical overlap above denotes examples containing minimally lexical overlap (therefore including all subsequence examples), and the count for subsequence above denotes examples containing minimally subsequence. Also recall that the constituent subcategory defined by McCoy et al. (2019) is not included in this project's analysis, which makes up the different in total dataset size compared to the sum of lexical overlap and subsequence counts. Total Count refers to the total number of examples of the subcategory.}
+\end{table}
+
+\begin{table}[hbt!]
+\begin{center}
+\begin{tabular}
+{p{0.07\textwidth}|p{0.05\textwidth} p{0.05\textwidth} p{0.05\textwidth} p{0.05\textwidth} p{0.05\textwidth} }
+  \hline
+  {\tiny \textbf{Subcategory}} & {\tiny \textbf{Total} \textbf{Count}} & {\tiny \textbf{Accuracy} {\%}} & {\tiny \textbf{FPos}} & {\tiny \textbf{FNeut}} & {\tiny \textbf{FNeg}} \\
+
+  {\tiny \textbf{Lexical Overlap}} & {\tiny 321} & {\tiny 99.07} & {\tiny 0} & {\tiny 1} & {\tiny 2} \\
+
+  {\tiny \textbf{Subsequence}} & {\tiny 28} & {\tiny 100} & {\tiny 0} & {\tiny 0} & {\tiny 0} \\
+
+\end{tabular}
+\end{center}
+\caption{\texttt{SNLI-dev} ELECTRA-small (SNLI-trained) performance with respect to the error categories and subcategories described in this section. The performance here is compared against performance on \texttt{mccoy-etal-2019} in the next section. Total Count refers to the total number of examples of the subcategory.}
+\end{table}
+
+%%%%%%%%%%
+\subsubsection{Results Discussion}
+\label{sec:rd}
+%%%%%%%%%%
+
+The most notable results comparing Table 2 and Table 3 are summarized below:
+\begin{itemize}
+  \item The small count of lexical overlap (321) and subsequence (28) examples in \texttt{SNLI-dev} compared to the total size of the dataset (9842)
+  \item The model's evaluation accuracy against \texttt{SNLI-dev} on lexical overlap (99.07\%) and subsequence (100\%) examples compared evaluation accuracy against \texttt{mccoy-etal-2019} lexical overlap (53.36\%) and subsequence (50.77\%) examples.
+\end{itemize}
+These discrepancies can be explained by the relative syntactic challenges presented by the \texttt{mccoy-etal-2019} dataset lexical overlap and subsequence examples compared to those of the SNLI corpus. 
+
+\begin{table}[hbt!]
+\begin{center}
+\tiny
+\begin{tabular}
+{p{0.05\textwidth} p{0.05\textwidth} | p{0.08\textwidth} p{0.06\textwidth} p{0.06\textwidth} }
+  \hline
+   {\tiny \textbf{Dataset}} & \textbf{Dataset Size} & {\tiny \textbf{Subcategory}} & {\tiny \textbf{Gold Label}} & {\tiny \textbf{Gold Label Count}} \\
+
+  \multirow{6}{*}{\tiny SNLI-train} & \multirow{6}{*}{550153} & \multirow{3}{*}{\tiny Lexical Overlap} & {\tiny Entailment} & {\tiny 16023} \\
+  & & & {\tiny Neutral} & {\tiny 655} \\
+  & & & {\tiny Contradiction} & {\tiny 174}  \\
+  \cline{3-5}
+  & & \multirow{3}{*}{\tiny Subsequence} & {\tiny Entailment} & {\tiny 1317} \\
+  & & & {\tiny Neutral} & {\tiny 58} \\
+  & & & {\tiny Contradiction} & {\tiny 22} \\
+\end{tabular}
+\end{center}
+\caption{Statistics on SNLI training data's lexical overlap and subsequence examples. Only 3.06\% of the training corpus pairs are lexical overlap or subsequence examples. Of lexical overlap examples, only 4.92\% are non-entailment gold-labeled. Of subsequence examples, only 5.73\% are non-entailment gold-labeled.}
+\end{table}
+
+\begin{table}[hbt!]
+\begin{center}
+\begin{tabular}
+{p{0.08\textwidth}|p{0.08\textwidth} p{0.06\textwidth} p{0.06\textwidth} p{0.06\textwidth} }
+  \hline
+   {\tiny \textbf{Dataset}} & {\tiny \textbf{Subcategory}} & {\tiny \textbf{Gold Label}} & {\tiny \textbf{Gold Label Count}} & {\tiny \textbf{Model Accuracy} {\%}} \\
+  \hline
+  \multirow{6}{*}{\tiny SNLI-dev} & \multirow{3}{*}{\tiny Lexical Overlap} & {\tiny Entailment} & {\tiny 315} & {\tiny 100} \\
+  & & {\tiny Neutral} & {\tiny 1} & {\tiny 0} \\
+  & & {\tiny Contradiction} & {\tiny 5} & {\tiny 60.00} \\
+  \cline{2-5}
+  & \multirow{3}{*}{\tiny Subsequence} & {\tiny Entailment} & {\tiny 28} & {\tiny 100} \\
+  & & {\tiny Neutral} & {\tiny 0} & {\tiny 0} \\
+  & & {\tiny Contradiction} & {\tiny 0} & {\tiny 0} \\
+
+  \bottomrule
+
+  \multirow{6}{*}{\tiny mccoy-etal-2019} & \multirow{3}{*}{\tiny Lexical Overlap} & {\tiny Entailment} & {\tiny 500} & {\tiny 96.02} \\
+  & & {\tiny Neutral} & {\tiny 0} & {\tiny n/a} \\
+  & & {\tiny Contradiction} & {\tiny 5000} & {\tiny 10.80} \\
+  \cline{2-5}
+  & \multirow{3}{*}{\tiny Subsequence} & {\tiny Entailment} & {\tiny 5000} & {\tiny 99.78} \\
+  & & {\tiny Neutral} & {\tiny 0} & {\tiny n/a} \\
+  & & {\tiny Contradiction} & {\tiny 5000} & {\tiny 1.76} \\
+\end{tabular}
+\end{center}
+\caption{Counts of lexical overlap and subsequence examples present in the \texttt{SNLI-dev} and \texttt{mccoy-etal-2019} datasets.}
+\end{table}
+
+Table 4 shows details of the training SNLI subset with respect to lexical overlap and subsequence examples. Clearly, the training corpus has a disproportionately small amount, 3.06\% of the set, of lexical overlap or subsequence sentence pairs. Within the small number of lexical overlap and subsequence examples, the number of non-entailment gold-labels are near negligible; only 0.165\% of the total training corpus are non-entailment gold-labeled lexical overlap or subsequence sentence pairs.
+
+Table 5 shows that the lexical overlap and subsequence examples in \texttt{SNLI-dev} are also disproportionately gold-labeled with entailment compared to lexical overlap and subsequence examples in \texttt{mccoy-etal-2019}. Clearly, ELECTRA-small struggled significantly with both lexical overlap and subsequence examples that had gold labels other than entailment. \texttt{SNLI-dev} contained only 6 such examples across both subcategories out of its total 9842 sentence pairs. Manual examination of the \texttt{SNLI-dev} lexical overlap and subsequence examples shows that the vast majority have hypotheses that effectively condense and summarize the premise, such as the following examples:
+
+\begin{table}[hbt!]
+\begin{center}
+\tiny
+\begin{tabular}{p{0.45\textwidth} p{0.45\textwidth}}
+
+\textit{Premise}: A man selling donuts to a customer during a world exhibition event held in the city of Angeles \\
+\textit{Hypothesis}: A man selling donuts to a customer \\
+\textit{lexical overlap, no subsequence, gold label entailment, model predicted entailment} \\
+
+\\
+
+\textit{Premise}: A young boy in a field of flowers carrying a ball \\
+\textit{Hypothesis}: boy in field \\
+\textit{lexical overlap, no subsequence, gold label entailment, model predicted entailment}
+
+\end{tabular}
+\end{center}
+\end{table}
+
+Comparatively, \texttt{mccoy-etal-2019} lexical overlap and subsequence examples contain challenging syntactic properties, such as subject-object swaps and passive phrasing:
+
+\begin{table}[hbt!]
+\begin{center}
+\tiny
+\begin{tabular}{p{0.45\textwidth} p{0.45\textwidth}}
+
+\textit{Premise}: The president advised the doctor \\
+\textit{Hypothesis}: The doctor advised the president \\
+\textit{lexical overlap, no subsequence, subject-object swap, gold label contradiction, model predicted entailment} \\
+
+\\
+
+\textit{Premise}: The managers were advised by the athlete \\
+\textit{Hypothesis}: The managers advised the athlete \\
+\textit{lexical overlap, no subsequence, passive phrasing, gold label contradiction, model predicted entailment}
+
+\end{tabular}
+\end{center}
+\end{table}
+
+Numerous other challenging syntactic property examples are present in \texttt{mccoy-etal-2019}. Refer to Table 14 in the \hyperref[sec:appendix]{Appendix} for full statistics on SNLI-trained ELECTRA-small's performance across all syntactic properties defined by McCoy et al. (2019).
+
+Combining the data in Tables 4 and 5 and the analysis above, it follows that ELECTRA-small struggled to perform on the \texttt{mccoy-etal-2019} dataset considering the SNLI corpus' (both training and development) lack of challenging lexical overlap and subsequence examples. The literature supports the finding that NLI models trained on SNLI struggle on examples with gold labels other than entailment that contain lexical overlap between the premise and hypothesis. Rajee et. al (2022)  present results suggesting BERT adopts heuristics biased towards predicting entailment for sentence pairs containing full word overlap (i.e. lexical overlap). This concept is well supported by other research \cite{zhou-bansal-2020-towards}, \cite{mendelson-belinkov-2021-debiasing}. Specifically, the aforementioned literature notes that transformer-based models, despite general conceptions of their robustness, can still adopt heuristics, such as those categorized above involving lexical overlap, when trained to an NLI task. Specifically, transformer-based models are likely to predict entailment between sentence pairs in examples with lexical overlap, and are likely to predict contradiction between sentence pairs in examples without lexical overlap \cite{naik-etal-2018-stress}, \cite{https://doi.org/10.48448/y3fv-1347}; however, literature also suggests augmenting training datasets with adversarial examples can lead to increased transformer-based model performance on lexical overlap examples \cite{DBLP:journals/corr/abs-1902-01007}. 
+
+Equipped with the results shown in this section, literature support, and knowledge of the shared transformer-based architecture between ELECTRA-small and BERT, I decided to focus my efforts on improving ELECTRA-small's performance on the challenging lexical overlap and subsequence examples present in the \texttt{mccoy-etal-2019} dataset. The results suggesting training dataset manipulation can lead to increase performance are not surprising, considering joint-direction transformer architectures are able to capture interactions between two sentences; that is, I chose to focus efforts on enhancing training datasets as opposed to tweaking ELECTRA-small's architecture. In order to keep the scope of this effort manageable, I chose to focus my improvement efforts related strictly to \texttt{mccoy-etal-2019}, not the other errors shown from evaluation against \texttt{SNLI-dev} and \texttt{glockner-acl18}. The results shown in this section support this choice, as there is much more room for improvement with respect to my chosen focus.
+
+%%%%%%%%%%
+\section{Training Electra-small on Adversarial Data}
+%%%%%%%%%%
+
+To improve ELECTRA-small's performance against the challenging lexical overlap and subsequence examples present in the \texttt{mccoy-etal-2019} dataset, I chose to train the model on adversarial data. Specifically, I attempted two methods with the aim of driving ELECTRA-small to encode syntactic properties rather than adopt heuristics based on lexical overlap in sentence pairs:
+
+\begin{itemize}
+\item Generating adversarial samples from the SNLI training set while training to inject into the training set
+\item Augmenting SNLI training set with a subset of \texttt{mccoy-etal-2019} data prior to training
+\end{itemize}
+
+%%%%%%%%%%
+\subsection{Generating Adversarial Samples}
+%%%%%%%%%%
+
+In order to generate adversarial samples from the SNLI training set while training to inject into the training set, I utilized the TextAttack framework \cite{DBLP:journals/corr/abs-2005-05909}. Given a predefined model such as ELECTRA-small, and a baseline training set such as the SNLI corpus, TextAttack allows generation of adversarial samples from the baseline training set (between epochs) during training to add to the data looped over during training epochs. The framework allows specification of the method to generate the adversarial examples. I chose to use the TEXTFOOLER \cite{DBLP:journals/corr/abs-1907-11932} method. This method generates adversarial examples by selecting important words in the hypothesis to replace with syntactically similar and grammatically correct alternatives; refer to Jin et. al (2020) for the definition of important words. By using this method, I hoped to divert ELECTRA-small's affinity for lexical overlap heuristics, as by changing words in the hypothesis, overlap between the premise and the hypothesis would decrease.
+
+TEXTFOOLER allows specification of the number of adversarial examples to generate, as well as the specific epochs in which to generate the examples. The environment and parameters I used are summarized below:
+
+\begin{itemize}
+\tiny
+\item Two separate training runs, one of which generating 5000 adversarial examples out of the greater than 560000 possible from the SNLI training set, and the other generating 50000. For both of these training runs, the following remained consistent:
+\begin{itemize}
+    \item ELECTRA-small model with baseline SNLI training set to start
+    \item Trained on Google Colab platform with a V100 GPU
+    \item Adam Optimization for learning rate
+    \item 3 epochs of training, 1 clean epoch to start training
+    \item Attack interval of 1 epoch, meaning adversarial examples (denoted as adversarials for the remainder of this report) were generated between the 1st and 2nd epoch for use in the 2nd epoch, as well as between the 2nd and 3rd epoch for use in the 3rd epoch
+\end{itemize}
+\end{itemize}
+
+%%%%%%%%%%
+\newpage
+\subsubsection{Effectiveness}
+%%%%%%%%%%
+
+\begin{table}[hbt!]
+\begin{center}
+\tiny
+\begin{tabular}{p{0.08\textwidth} p{0.08\textwidth} | p{0.08\textwidth} p{0.08\textwidth}}
+  \textbf{Adversarials Generated} & \textbf{Dataset} & \textbf{Dataset Size} & \textbf{Evaluation Accuracy} (\%)\\
+  \hline
+  \multirow{3}{*}{5000} & \textbf{SNLI-dev} & 9842 & 89.11 \\
+  & \textbf{glockner-acl18} & 8193 & 94.48 \\
+  & \textbf{mccoy-etal-2019} & 30000 & 52.01 \\
+  
+  \hline
+  
+  \multirow{3}{*}{50000} & \textbf{SNLI-dev} & 9842 & 88.80 \\
+  & \textbf{glockner-acl18} & 8193 & 94.96 \\
+  & \textbf{mccoy-etal-2019} & 30000 & 50.70 \\
+\end{tabular}
+\end{center}
+\caption{Evaluation Performance of ELECTRA-small trained for 3 epochs using TEXTFOOLER; both training runs are shown, the first of which with 5000 adversarials generated between epochs 2 and 3, and the second with 50000 adversarials generated between epochs 2 and 3.}
+\end{table}
+
+\begin{table}[hbt!]
+\begin{center}
+\tiny
+\begin{tabular}
+{p{0.06\textwidth} p{0.07\textwidth}|p{0.05\textwidth} p{0.04\textwidth} p{0.02\textwidth} p{0.02\textwidth} p{0.02\textwidth} }
+  \textbf{Adversarials Generated} & {\tiny \textbf{Subcategory}} & {\tiny \textbf{Subcategory} \textbf{Count}} & {\tiny \textbf{Accuracy} {\%}} & {\tiny \textbf{FPos}} & {\tiny \textbf{FNeut}} & {\tiny \textbf{FNeg}} \\
+  \hline
+  \multirow{2}{*}{5000} & {\tiny \textbf{Lexical Overlap}} & {\tiny 10000} & {\tiny 57.00} & {\tiny 4117} & {\tiny 0} & {\tiny 183} \\
+  & {\tiny \textbf{Subsequence}} & {\tiny 10000} & {\tiny 50.35} & {\tiny 4957} & {\tiny 0} & {\tiny 8} \\
+  
+  \hline
+  
+  \multirow{2}{*}{50000} & {\tiny \textbf{Lexical Overlap}} & {\tiny 10000} & {\tiny 51.93} & {\tiny 4714} & {\tiny 0} & {\tiny 93} \\
+  & {\tiny \textbf{Subsequence}} & {\tiny 10000} & {\tiny 50.37} & {\tiny 4963} & {\tiny 0} & {\tiny 0} \\
+\end{tabular}
+\end{center}
+\caption{\texttt{mccoy-etal-2019} ELECTRA-small (SNLI-trained with TEXTFOOLER generation) performance with respect to lexical overlap and subsequence examples. Recall the dataset has no neutral gold labels, and that subsequence is a subset of lexical overlap. Refer to Tables 15 and 16 in the \hyperref[sec:appendix]{Appendix} for full statistics on this ELECTRA-small model's performance across all syntactic properties defined by McCoy et al. (2019).}
+\end{table}
+
+\begin{table}[hbt!]
+\begin{center}
+\tiny
+\begin{tabular}
+{p{0.06\textwidth} p{0.07\textwidth}|p{0.05\textwidth} p{0.04\textwidth} p{0.02\textwidth} p{0.02\textwidth} p{0.02\textwidth} }
+  \textbf{Adversarials Generated} & {\tiny \textbf{Subcategory}} & {\tiny \textbf{Subcategory} \textbf{Count}} & {\tiny \textbf{Accuracy} {\%}} & {\tiny \textbf{FPos}} & {\tiny \textbf{FNeut}} & {\tiny \textbf{FNeg}} \\
+  \hline
+  \multirow{2}{*}{5000} & {\tiny \textbf{Lexical Overlap}} & {\tiny 321} & {\tiny 99.07} & {\tiny 0} & {\tiny 1} & {\tiny 2} \\
+  & {\tiny \textbf{Subsequence}} & {\tiny 28} & {\tiny 100} & {\tiny 0} & {\tiny 0} & {\tiny 0} \\
+  \hline
+  \multirow{2}{*}{50000} & {\tiny \textbf{Lexical Overlap}} & {\tiny 321} & {\tiny 98.44} & {\tiny 1} & {\tiny 1} & {\tiny 3} \\
+  & {\tiny \textbf{Subsequence}} & {\tiny 28} & {\tiny 100} & {\tiny 0} & {\tiny 0} & {\tiny 0} \\
+\end{tabular}
+\end{center}
+\caption{\texttt{SNLI-dev} ELECTRA-small (SNLI-trained with TEXTFOOLER generation) performance with respect to lexical overlap and subsequence examples.}
+\end{table}
+
+Several key observations follow from Tables 6-8:
+\begin{enumerate}
+  \item The difference between evaluation accuracy of ELECTRA-small trained on SNLI vs. trained on SNLI with 5000 TEXTFOOLER adversarials generated vs. trained on SNLI with 50000 TEXTFOOLER adversarials generated is marginal across \texttt{SNLI-dev}, \texttt{glocker-acl18}, and\texttt{mcoy-etal-2019}. For all three ELECTRA-small training methods studied:
+  \begin{enumerate}
+      \item The difference in accuracy on \texttt{SNLI-dev} is within 0.43\%
+      \item The difference in accuracy on \texttt{glockner-acl18} is within 2.4\%. Both TEXTFOOLER trained models do perform marginally better.
+      \item The difference in accuracy on \texttt{mccoy-etal-2019} is within 0.8\%.The 5000 advertorials TEXTFOOLER-trained model performs marginally better compared to the normal SNLI-trained model, and the 50000 advertorials TEXTFOOLER trained model performs marginally worse.
+  \end{enumerate}
+  \item The difference between evaluation accuracy of ELECTRA-small trained on SNLI vs. trained on SNLI with 5000 TEXTFOOLER adversarials generated vs. trained on SNLI with 50000 TEXTFOOLER adversarials generated is marginal across all lexical overlap and subsequence examples in \texttt{SNLI-dev} and \texttt{glocker-acl18}. For the aforementioned three ELECTRA-small training methods:
+  \begin{enumerate}
+      \item There is no difference in performance on \texttt{SNLI-dev} subsequence examples. The 50000 adversarials TEXTFOOLER trained model performs marginally worse than the SNLI-trained model on lexical overlap examples by 0.63\%. There is no difference between the 5000 adversarials TEXTFOOLER-trained model compared to the SNLI-trained model on lexical overlap examples.
+      \item For \texttt{mccoy-etal-2019}: The 5000 adversarials TEXTFOOLER-trained model is 3.64\% more accurate on lexical overlap examples compared to the SNLI-trained model, and is marginally (0.42\%) less accurate on subsequence examples. The 50000 adversarials TEXTFOOLER-trained model performs marginally worse on both lexical overlap and subsequence examples compared to the SNLI-trained model.
+  \end{enumerate}
+\end{enumerate}
+
+In summary, there is marginal performance difference across all three datasets, as well as specifically on lexical and subsequence examples. This can be explained primarily by the adversarial generation method of TEXTFOOLER. TEXTFOOLER generates syntactically similar and grammatically correct alternative hypotheses, meaning the true gold label does not change. Therefore, the flaw in the SNLI training discussed in the earlier \hyperref[sec:rd]{Results Discussion} section persists: the lexical overlap and subsequence examples present in the SNLI dataset are disproportionately gold-labeled with entailment and not challenging, and TEXTFOOLER's methods do not change this. Therefore, ELECTRA-small remains prone to use lexical overlap-based heuristics, explaining the marginal difference we observe. Additionally, manual examination of the adversarial examples generated by TEXTFOOLER proved that the vast majority of examples generated only swapped 1 or 2 words, meaning sentence pairs with large amounts of lexical overlap persist, though not necessarily at 100\%. This leaves ELECTRA-small still prone to overlap-based heuristics, though it may push training away from fully leaning on 100\% overlap-based heuristics.
+
+Lastly, as shown in Table 13 of the \hyperref[sec:appendix]{Appendix}, the SNLI-trained (no TEXTFOOLER) ELECTRA-small successfully predicted 893 of 894 synonyms examples present in the \texttt{glockner-acl18} dataset. This follows from ELECTRA-small sharing architecture with BERT, including use of positional and segment embeddings that can capture word similarity. So, in addition to not generating sufficient contradictory challenging lexical overlap and subsequence examples while training, TEXTFOOLER proved ineffective for my goal due to ELECTRA-small's ability to discern word similarity through use of embeddings. Therefore, I decided to shift focus to manually augmenting the SNLI training set with contradictory challenging lexical overlap and subsequence examples by taking a subset of \texttt{mccoy-etal-2019} data.
+
+%%%%%%%%%%
+\subsection{Augmenting SNLI Training Set}
+%%%%%%%%%%
+In order to augment the SNLI training corpus with a subset of \texttt{mccoy-etal-2019} data prior to training, I generated a training set that combined 60\% of the \texttt{mccoy-etal-2019} data along with the full SNLI training set, meaning 40\% of the \texttt{mccoy-etal-2019} data was set aside for performance evaluation. With that 60\% training / 40\% development split, I evenly sampled across all of the syntactic properties presented by McCoy et al. (2019) as shown in Tables 14-17 in the \hyperref[sec:appendix]{Appendix}. Prior to training, I made sure to shuffle the merged training data. I performed training on a Google Colab platform with a V100 GPU.
+
+%%%%%%%%%%
+\subsubsection{Effectiveness}
+%%%%%%%%%%
+\begin{table}[hbt!]
+\begin{center}
+\tiny
+\begin{tabular}{ p{0.08\textwidth} | p{0.08\textwidth} p{0.08\textwidth}}
+  \textbf{Dataset} & \textbf{Dataset Size} & \textbf{Evaluation Accuracy} (\%)\\
+  \hline
+  \textbf{SNLI-dev} & 9842 & 89.22 \\
+  \textbf{glockner-acl18} & 8193 & 90.38 \\
+  \textbf{40\% mccoy-etal-2019} & 12000 & 100.00 \\
+\end{tabular}
+\end{center}
+\caption{ELECTRA-small(60\%-McCoy-augmented-SNLI-trained) performance on the three datasets discussed in section 2.}
+\end{table}
+
+\begin{table}[hbt!]
+\begin{center}
+\tiny
+\begin{tabular}
+{ p{0.08\textwidth} | p{0.06\textwidth} p{0.05\textwidth} p{0.03\textwidth} p{0.03\textwidth} p{0.03\textwidth} }
+  {\tiny \textbf{Subcategory}} & {\tiny \textbf{Subcategory} \textbf{Count}} & {\tiny \textbf{Accuracy} {\%}} & {\tiny \textbf{FPos}} & {\tiny \textbf{FNeut}} & {\tiny \textbf{FNeg}} \\
+  \hline
+   {\tiny \textbf{Lexical Overlap}} & {\tiny 4000} & {\tiny 100.00} & {\tiny 0} & {\tiny 0} & {\tiny 0} \\
+  {\tiny \textbf{Subsequence}} & {\tiny 4000} & {\tiny 100.00} & {\tiny 0} & {\tiny 0} & {\tiny 0} \\
+\end{tabular}
+\end{center}
+\caption{ELECTRA-small (60\%-McCoy-augmented-SNLI-trained) performance on the 40\% withheld \texttt{mccoy-etal-2019} data with respect to lexical overlap and subsequence examples. Recall the dataset has no neutral gold labels, and that subsequence is a subset of lexical overlap. Refer to Table 17 in the \hyperref[sec:appendix]{Appendix} for full statistics on this ELECTRA-small model's performance across all syntactic properties defined by McCoy et al. (2019).}
+\end{table}
+
+\begin{table}[hbt!]
+\begin{center}
+\tiny
+\begin{tabular}
+{ p{0.08\textwidth} | p{0.06\textwidth} p{0.05\textwidth} p{0.03\textwidth} p{0.03\textwidth} p{0.03\textwidth} }
+  {\tiny \textbf{Subcategory}} & {\tiny \textbf{Subcategory} \textbf{Count}} & {\tiny \textbf{Accuracy} {\%}} & {\tiny \textbf{FPos}} & {\tiny \textbf{FNeut}} & {\tiny \textbf{FNeg}} \\
+  \hline
+   {\tiny \textbf{Lexical Overlap}} & {\tiny 321} & {\tiny 99.07} & {\tiny 0} & {\tiny 1} & {\tiny 2} \\
+  {\tiny \textbf{Subsequence}} & {\tiny 28} & {\tiny 100.00} & {\tiny 0} & {\tiny 0} & {\tiny 0} \\
+\end{tabular}
+\end{center}
+\caption{ELECTRA-small(60\%-McCoy-augmented-SNLI-trained) performance on the \texttt{SNLI-dev} data with respect to lexical overlap and subsequence examples.}
+\end{table}
+
+Several key observations follow from Tables 9-11:
+\begin{enumerate}
+  \item ELECTRA-small trained on SNLI augmented with 60\% of \texttt{mccoy-etal-2019} has the exact same accuracy on the \texttt{SNLI-dev} set as ELECTRA-small trained on regular SNLI
+  \item ELECTRA-small trained on SNLI augmented with 60\% of \texttt{mccoy-etal-2019} is marginally less accurate, 2.17\% on the \texttt{glocker-acl18} dataset, compared to ELECTRA-small trained on regular SNLI
+  \item ELECTRA-small trained on SNLI augmented with 60\% of the \texttt{mccoy-etal-2019} performs astonishingly well on lexical overlap and subsequence examples in \texttt{SNLI-dev} and the remaining 40\% of \texttt{mccoy-etal-2019}
+  \begin{enumerate}
+      \item Both models perform equally accurately on the lexical overlap and subsequence examples in \texttt{SNLI-dev}
+      \item ELECTRA-small trained on SNLI augmented with 60\% of the \texttt{mccoy-etal-2019} is 100\% accurate on the remaining 40\% of \texttt{mccoy-etal-2019}. Recall ELECTRA-small trained on regular SNLI had an accuracy of only 51.48 \% on the entire \texttt{mccoy-etal-2019} dataset.
+  \end{enumerate}
+\end{enumerate}
+
+As a sanity check, Table 12 shows the performance of the baseline ELECTRA-small model trained with the regular SNLI training corpus from section 2 on the 40\% withheld \texttt{mccoy-etal-2019} data. Clearly, the performance is consistent with the baseline model's poor performance on the entire \texttt{mccoy-etal-2019} set.
+
+\begin{table}[hbt!]
+\begin{center}
+\tiny
+\begin{tabular}{ p{0.1\textwidth} | p{0.08\textwidth} p{0.08\textwidth}}
+  \textbf{Dataset} & \textbf{Size} & \textbf{Evaluation Accuracy} (\%)\\
+  \hline
+  \textbf{40\% mccoy-etal-2019 Total} & 12000 & 51.58 \\
+  \textbf{40\% mccoy-etal-2019 Lexical Overlap} & 4000 & 53.64 \\
+  \textbf{40\% mccoy-etal-2019 Subsequence} & 4000 & 50.76 \\
+\end{tabular}
+\end{center}
+\caption{SNLI-only-trained ELECTRA-small performance on the 40\% withheld \texttt{mccoy-etal-2019} data from section 3.}
+\end{table}
+
+In summary, ELECTRA-small trained on SNLI augmented with 60\% of the \texttt{mccoy-etal-2019} performs similarly on \texttt{SNLI-dev} and \texttt{glocker-acl18}, but performs near perfectly on all lexical overlap and subsequence examples present in \texttt{SNLI-dev} and remaining 40\% of \texttt{mccoy-etal-2019}, making only 3 mistakes out of the total 8349 examples across both sets. McCoy et al. (2019) reported that BERT trained on a dataset augmented with same examples similar to (but not actually from) \texttt{mccoy-etal-2019} was able to perform better on \texttt{mccoy-etal-2019}. My results, in addition to the aforementioned McCoy et al. (2019) BERT results, suggest that transformer-based NLI models are in fact able to handle lexical overlap and subsequence examples, so long as the models are trained with appropriate datasets. Specifically, SNLI is not an appropriate dataset, as it has an insufficient number of lexical overlap and subsequence sentence pairs with non-entailment gold labels, leading to the heuristics described above. Transformers are well-understood to capture alignment between words, because self-attention mechanisms allow all words in a phrase to attend to each-other \cite{DBLP:journals/corr/VaswaniSPUJGKP17}. However, we observe that the properties of transformers and self-attention, such as in ELECTRA-small, do not enable models to overcome lack of challenging examples in training datasets. Without introducing training examples capturing non-entailment gold-labeled lexical overlap and subsequence examples, transformer-based models can still fallback on lexical overlap-based heuristics.
+
+%%%%%%%%%%
+\section{Conclusion}
+%%%%%%%%%%
+In this paper, I show that the transformer-based ELECTRA-small NLI model is vulnerable to adopting lexical overlap-based heuristics if the dataset it is trained on does not contain a sufficient amount of non-entailment gold-labeled examples. In the case where these examples are not common in the training dataset, ELECTRA-small performs poorly on datasets such as \texttt{mccoy-etal-2019} that deliberately construct challenging lexical overlap and subsequence examples. However, ELECTRA-small demonstrated the ability to disregard such heuristics when exposed to a training set augmented with \texttt{mccoy-etal-2019} examples. These findings suggest that while SNLI is an expansive, well-understood dataset, for the purpose of training transformer-based NLI models, augmenting the dataset with lexical overlap and subsequence examples can drive better general performance on development datasets containing challenging lexical overlap and subsequence sentence pairs.
+
+%%%%%%%%%%
+\bibliography{acl2019}
+\bibliographystyle{acl_natbib}
+%%%%%%%%%%
+
+%%%%%%%%%%
+\appendix
+\section{Appendices}
+\label{sec:appendix}
+%%%%%%%%%%
+
+\begin{table}[hbt!]
+\begin{center}
+\begin{tabular}
+{p{0.08\textwidth}|p{0.05\textwidth} p{0.05\textwidth} p{0.03\textwidth} p{0.03\textwidth} p{0.03\textwidth} }
+  {\tiny \textbf{Category}} & {\tiny \textbf{Category} \textbf{Count}} & {\tiny \textbf{Accuracy} {\%}} & {\tiny \textbf{FPos}} & {\tiny \textbf{FNeut}} & {\tiny \textbf{FNeg}} \\
+  \hline
+  {\tiny \textbf{Antonyms}} & {\tiny 1147} & {\tiny 87.36} & {\tiny 120} & {\tiny 25} & {\tiny 0} \\
+  {\tiny \textbf{Synonyms}} & {\tiny 894} & {\tiny 99.89} & {\tiny 0} & {\tiny 0} & {\tiny 1} \\
+  {\tiny \textbf{Cardinals}} & {\tiny 759} & {\tiny 96.97} & {\tiny 6} & {\tiny 9} & {\tiny 8} \\
+  {\tiny \textbf{Nationalities}} & {\tiny 755} & {\tiny 93.51} & {\tiny 35} & {\tiny 14} & {\tiny 0} \\
+  {\tiny \textbf{Drinks}} & {\tiny 731} & {\tiny 94.12} & {\tiny 16} & {\tiny 17} & {\tiny 10} \\
+  {\tiny \textbf{Antonyms-Wordnet}} & {\tiny 706} & {\tiny 82.29} & {\tiny 52} & {\tiny 67} & {\tiny 6} \\
+  {\tiny \textbf{Colors}} & {\tiny 699} & {\tiny 96.57} & {\tiny 13} & {\tiny 2} & {\tiny 9} \\
+  {\tiny \textbf{Ordinals}} & {\tiny 663} & {\tiny 94.42} & {\tiny 29} & {\tiny 4} & {\tiny 4} \\
+  {\tiny \textbf{Countries}} & {\tiny 613} & {\tiny 97.39} & {\tiny 7} & {\tiny 9} & {\tiny 0} \\
+  {\tiny \textbf{Rooms}} & {\tiny 595} & {\tiny 87.23} & {\tiny 25} & {\tiny 50} & {\tiny 1} \\
+  {\tiny \textbf{Materials}} & {\tiny 397} & {\tiny 98.49} & {\tiny 4} & {\tiny 1} & {\tiny 1} \\
+  {\tiny \textbf{Vegetables}} & {\tiny 109} & {\tiny 56.88} & {\tiny 11} & {\tiny 31} & {\tiny 5} \\
+  {\tiny \textbf{Instruments}} & {\tiny 65} & {\tiny 96.92} & {\tiny 2} & {\tiny 0} & {\tiny 0} \\
+  {\tiny \textbf{Planets}} & {\tiny 60} & {\tiny 75.00} & {\tiny 10} & {\tiny 5} & {\tiny 0} \\
+  {\tiny \textbf{Totals}} & {\tiny 8193} & {\tiny 92.57} & {\tiny 330} & {\tiny 234} & {\tiny 45} \\
+\end{tabular}
+\end{center}
+\caption{\texttt{glockner-acl18} ELECTRA-small (SNLI-trained) performance across the categories described by Glockner et al. (2018). Recall  Category refers to the categorization of the single-word swap between the premise and hypothesis}
+\end{table}
+
+\begin{table}[!hbt]
+    \centering
+    \tiny
+    \centering
+    \begin{tabular}{p{0.1\textwidth}|p{0.05\textwidth} p{0.05\textwidth} p{0.03\textwidth} p{0.03\textwidth} p{0.03\textwidth} }
+        \textbf{Category} & \textbf{Category Count} & \textbf{Accuracy \%} & \textbf{FPos} & \textbf{FNeut} & \textbf{FNeg} \\
+        \hline
+        \textbf{ln subject/object swap} & 1000 & 4.20 & 958 & 0 & 0 \\
+        \textbf{ln preposition} & 1000 & 14.40 & 852 & 4 & 0 \\
+        \textbf{ln relative clause} & 1000 & 10.60 & 893 & 1 & 0 \\
+        \textbf{ln passive} & 1000 & 1.00 & 990 & 0 & 0 \\
+        \textbf{ln conjunction} & 1000 & 23.30 & 767 & 0 & 0 \\
+        \textbf{le relative clause} & 1000 & 97.30 & 0 & 0 & 27 \\
+        \textbf{le around prepositional phrase} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{le around relative clause} & 1000 & 96.40 & 0 & 0 & 36 \\
+        \textbf{le conjunction} & 1000 & 90.30 & 0 & 0 & 97 \\
+        \textbf{le passive} & 1000 & 96.10 & 0 & 0 & 39 \\
+        \textbf{Lexical Overlap Total} & 10000 & 53.36 & 4460 & 5 & 199 \\
+        \hline
+        \textbf{sn NP/S} & 1000 & 0.00 & 1000 & 0 & 0 \\
+        \textbf{sn PP on subject} & 1000 & 2.00 & 980 & 0 & 0 \\
+        \textbf{sn relative clause on subject} & 1000 & 2.00 & 980 & 0 & 0 \\
+        \textbf{sn past participle} & 1000 & 0.00 & 1000 & 0 & 0 \\
+        \textbf{sn NP/Z} & 1000 & 4.80 & 952 & 0 & 0 \\
+        \textbf{se conjunction} & 1000 & 98.90 & 0 & 0 & 11 \\
+        \textbf{se adjective} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{se understood object} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{se relative clause on obj} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{se PP on obj} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{Subsequence Total} & 10000 & 50.77 & 4912 & 0 & 11 \\
+        \hline
+        \textbf{cn embedded under if} & 1000 & 8.30 & 917 & 0 & 0 \\
+        \textbf{cn after if clause} & 1000 & 0.00 & 1000 & 0 & 0 \\
+        \textbf{cn embedded under verb} & 1000 & 0.20 & 998 & 0 & 0 \\
+        \textbf{cn disjunction} & 1000 & 8.90 & 911 & 0 & 0 \\
+        \textbf{cn adverb} & 1000 & 0.00 & 1000 & 0 & 0 \\
+        \textbf{ce embedded under since} & 1000 & 99.70 & 0 & 0 & 3 \\
+        \textbf{ce after since clause} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{ce embedded under verb} & 1000 & 86.30 & 0 & 0 & 137 \\
+        \textbf{ce conjunction} & 1000 & 99.60 & 0 & 0 & 4 \\
+        \textbf{ce adverb} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{Constituent Total} & 10000 & 50.30 & 4829 & 0 & 144 \\
+    \end{tabular}
+    \caption{\texttt{mccoy-etal-2019} ELECTRA-small (SNLI-trained) performance across the categories described by McCoy et al. (2019).}
+\end{table}
+
+\begin{table}[!hbt]
+    \centering
+    \tiny
+    \centering
+    \begin{tabular}{p{0.1\textwidth}|p{0.05\textwidth} p{0.05\textwidth} p{0.03\textwidth} p{0.03\textwidth} p{0.03\textwidth} }
+        \textbf{Category} & \textbf{Category Count} & \textbf{Accuracy \%} & \textbf{FPos} & \textbf{FNeut} & \textbf{FNeg} \\
+        \hline
+        \textbf{ln subject/object swap} & 1000 & 8.50 & 915 & 0 & 0 \\
+        \textbf{ln preposition} & 1000 & 22.20 & 778 & 0 & 0 \\
+        \textbf{ln relative clause} & 1000 & 19.90 & 801 & 0 & 0 \\
+        \textbf{ln passive} & 1000 & 0.00 & 1000 & 0 & 0 \\
+        \textbf{ln conjunction} & 1000 & 37.70 & 623 & 0 & 0 \\
+        \textbf{le relative clause} & 1000 & 94.10 & 0 & 0 & 59 \\
+        \textbf{le around prepositional phrase} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{le around relative clause} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{le conjunction} & 1000 & 88.00 & 0 & 0 & 120 \\
+        \textbf{le passive} & 1000 & 99.60 & 0 & 0 & 4 \\
+        \textbf{Lexical Overlap Total} & 10000 & 57.00 & 4117 & 0 & 183 \\
+        \hline
+        \textbf{sn NP/S} & 1000 & 0.10 & 999 & 0 & 0 \\
+        \textbf{sn PP on subject} & 1000 & 2.50 & 975 & 0 & 0 \\
+        \textbf{sn relative clause on subject} & 1000 & 1.00 & 990 & 0 & 0 \\
+        \textbf{sn past participle} & 1000 & 0.60 & 994 & 0 & 0 \\
+        \textbf{sn NP/Z} & 1000 & 0.10 & 999 & 0 & 0 \\
+        \textbf{se conjunction} & 1000 & 99.20 & 0 & 0 & 8 \\
+        \textbf{se adjective} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{se understood object} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{se relative clause on obj} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{se PP on obj} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{Subsequence Total} & 10000 & 50.35 & 4957 & 0 & 8 \\
+        \hline
+        \textbf{cn embedded under if} & 1000 & 2.20 & 977 & 1 & 0 \\
+        \textbf{cn after if clause} & 1000 & 0.00 & 1000 & 0 & 0 \\
+        \textbf{cn embedded under verb} & 1000 & 0.00 & 1000 & 0 & 0 \\
+        \textbf{cn disjunction} & 1000 & 1.30 & 987 & 0 & 0 \\
+        \textbf{cn adverb} & 1000 & 0.00 & 1000 & 0 & 0 \\
+        \textbf{ce embedded under since} & 1000 & 98.80 & 0 & 0 & 12 \\
+        \textbf{ce after since clause} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{ce embedded under verb} & 1000 & 84.90 & 0 & 0 & 151 \\
+        \textbf{ce conjunction} & 1000 & 99.50 & 0 & 0 & 5 \\
+        \textbf{ce adverb} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{Constituent Total} & 10000 & 48.67 & 4964 & 1 & 168 \\
+    \end{tabular}
+    \caption{\texttt{mccoy-etal-2019} ELECTRA-small (SNLI-trained with 5k textfooler textattacks) performance across the categories described by McCoy et al. (2019).}
+\end{table}
+
+\begin{table}[!hbt]
+    \tiny
+    \centering
+    \begin{tabular}{p{0.1\textwidth}|p{0.05\textwidth} p{0.05\textwidth} p{0.03\textwidth} p{0.03\textwidth} p{0.03\textwidth} }
+        \textbf{Category} & \textbf{Category Count} & \textbf{Accuracy \%} & \textbf{FPos} & \textbf{FNeut} & \textbf{FNeg} \\
+        \hline
+        \textbf{ln subject/object swap} & 1000 & 1.30 & 987 & 0 & 0 \\
+        \textbf{ln preposition} & 1000 & 7.80 & 922 & 0 & 0 \\
+        \textbf{ln relative clause} & 1000 & 2.80 & 972 & 0 & 0 \\
+        \textbf{ln passive} & 1000 & 0.00 & 1000 & 0 & 0 \\
+        \textbf{ln conjunction} & 1000 & 16.70 & 833 & 0 & 0 \\
+        \textbf{le relative clause} & 1000 & 96.00 & 0 & 0 & 40 \\
+        \textbf{le around prepositional phrase} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{le around relative clause} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{le conjunction} & 1000 & 94.70 & 0 & 0 & 53 \\
+        \textbf{le passive} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{Lexical Overlap Total} & 10000 & 51.93 & 4714 & 0 & 93 \\
+        \hline
+        \textbf{sn NP/S} & 1000 & 0.00 & 1000 & 0 & 0 \\
+        \textbf{sn PP on subject} & 1000 & 2.60 & 974 & 0 & 0 \\
+        \textbf{sn relative clause on subject} & 1000 & 0.10 & 999 & 0 & 0 \\
+        \textbf{sn past participle} & 1000 & 1.00 & 990 & 0 & 0 \\
+        \textbf{sn NP/Z} & 1000 & 0.00 & 1000 & 0 & 0 \\
+        \textbf{se conjunction} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{se adjective} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{se understood object} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{se relative clause on obj} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{se PP on obj} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{Subsequence Total} & 10000 & 50.37 & 4963 & 0 & 0 \\
+        \hline
+        \textbf{cn embedded under if} & 1000 & 0.00 & 1000 & 0 & 0 \\
+        \textbf{cn after if clause} & 1000 & 0.00 & 1000 & 0 & 0 \\
+        \textbf{cn embedded under verb} & 1000 & 0.00 & 1000 & 0 & 0 \\
+        \textbf{cn disjunction} & 1000 & 0.40 & 996 & 0 & 0 \\
+        \textbf{cn adverb} & 1000 & 0.00 & 1000 & 0 & 0 \\
+        \textbf{ce embedded under since} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{ce after since clause} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{ce embedded under verb} & 1000 & 97.60 & 0 & 0 & 24 \\
+        \textbf{ce conjunction} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{ce adverb} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{Constituent Total} & 10000 & 49.80 & 4996 & 0 & 24 \\
+    \end{tabular}
+    \caption{\texttt{mccoy-etal-2019} ELECTRA-small (SNLI-trained with 50k textfooler textattacks) performance across the categories described by McCoy et al. (2019).}
+\end{table}
+
+\begin{table}[!hbt]
+    \tiny
+    \centering
+    \begin{tabular}{p{0.1\textwidth}|p{0.05\textwidth} p{0.05\textwidth} p{0.03\textwidth} p{0.03\textwidth} p{0.03\textwidth} }
+        \textbf{Category} & \textbf{Category Count} & \textbf{Accuracy \%} & \textbf{FPos} & \textbf{FNeut} & \textbf{FNeg} \\
+        \hline
+        \textbf{ln subject/object swap} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{ln preposition} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{ln relative clause} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{ln passive} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{ln conjunction} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{le relative clause} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{le around prepositional phrase} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{le around relative clause} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{le conjunction} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{le passive} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{Lexical Overlap Total} & 4000 & 100.00 & 0 & 0 & 0 \\
+        \hline
+        \textbf{sn NP/S} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{sn PP on subject} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{sn relative clause on subject} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{sn past participle} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{sn NP/Z} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{se conjunction} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{se adjective} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{se understood object} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{se relative clause on obj} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{se PP on obj} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{Subsequence Total} & 4000 & 100.00 & 0 & 0 & 0 \\
+        \hline
+        \textbf{cn embedded under if} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{cn after if clause} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{cn embedded under verb} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{cn disjunction} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{cn adverb} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{ce embedded under since} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{ce after since clause} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{ce embedded under verb} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{ce conjunction} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{ce adverb} & 1000 & 100.00 & 0 & 0 & 0 \\
+        \textbf{Constituent Total} & 4000 & 100.00 & 0 & 0 & 0 \\
+    \end{tabular}
+    \caption{\texttt{mccoy-etal-2019} 12k subset ELECTRA-small (SNLI-trained augmented with 18k\texttt{mccoy-etal-2019} examples) performance across the categories described by McCoy et al. (2019).}
+\end{table}
+
+%%%%%%%%%%
+\end{document}
+%%%%%%%%%%

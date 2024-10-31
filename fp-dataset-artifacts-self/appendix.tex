@@ -1,0 +1,215 @@
+\begin{table}[t!]
+\begin{center}
+\begin{tabular}
+{|p{0.06\textwidth}|p{0.05\textwidth}|p{0.05\textwidth}|p{0.05\textwidth}|p{0.05\textwidth}|p{0.05\textwidth}|}
+  \hline
+  {\tiny \textbf{Category}} & {\tiny \textbf{Category} \textbf{Count}} & {\tiny \textbf{Accuracy} {\%}} & {\tiny \textbf{False Positives}} & {\tiny \textbf{False Neutrals}} & {\tiny \textbf{False Negatives}} \\
+  \hline
+  {\tiny \textbf{Antonyms}} & {\tiny 1147} & {\tiny 87.36} & {\tiny 120} & {\tiny 25} & {\tiny 0} \\
+  \hline
+  {\tiny \textbf{Synonyms}} & {\tiny 894} & {\tiny 99.89} & {\tiny 0} & {\tiny 0} & {\tiny 1} \\
+  \hline
+  {\tiny \textbf{Cardinals}} & {\tiny 759} & {\tiny 96.97} & {\tiny 6} & {\tiny 9} & {\tiny 8} \\
+  \hline
+  {\tiny \textbf{Nationalities}} & {\tiny 755} & {\tiny 93.51} & {\tiny 35} & {\tiny 14} & {\tiny 0} \\
+  \hline
+  {\tiny \textbf{Drinks}} & {\tiny 731} & {\tiny 94.12} & {\tiny 16} & {\tiny 17} & {\tiny 10} \\
+  \hline
+  {\tiny \textbf{Antonyms-Wordnet}} & {\tiny 706} & {\tiny 82.29} & {\tiny 52} & {\tiny 67} & {\tiny 6} \\
+  \hline
+  {\tiny \textbf{Colors}} & {\tiny 699} & {\tiny 96.57} & {\tiny 13} & {\tiny 2} & {\tiny 9} \\
+  \hline
+  {\tiny \textbf{Ordinals}} & {\tiny 663} & {\tiny 94.42} & {\tiny 29} & {\tiny 4} & {\tiny 4} \\
+  \hline
+  {\tiny \textbf{Countries}} & {\tiny 613} & {\tiny 97.39} & {\tiny 7} & {\tiny 9} & {\tiny 0} \\
+  \hline
+  {\tiny \textbf{Rooms}} & {\tiny 595} & {\tiny 87.23} & {\tiny 25} & {\tiny 50} & {\tiny 1} \\
+  \hline
+  {\tiny \textbf{Materials}} & {\tiny 397} & {\tiny 98.49} & {\tiny 4} & {\tiny 1} & {\tiny 1} \\
+  \hline
+  {\tiny \textbf{Vegetables}} & {\tiny 109} & {\tiny 56.88} & {\tiny 11} & {\tiny 31} & {\tiny 5} \\
+  \hline
+  {\tiny \textbf{Instruments}} & {\tiny 65} & {\tiny 96.92} & {\tiny 2} & {\tiny 0} & {\tiny 0} \\
+  \hline
+  {\tiny \textbf{Planets}} & {\tiny 60} & {\tiny 75.00} & {\tiny 10} & {\tiny 5} & {\tiny 0} \\
+  \hline
+  {\tiny \textbf{Totals}} & {\tiny 8193} & {\tiny 92.57} & {\tiny 330} & {\tiny 234} & {\tiny 45} \\
+  \hline
+\end{tabular}
+\end{center}
+\caption{\texttt{glockner-acl18} ELECTRA-small (SNLI-trained) performance across the categories described by Glockner et al. (2018). Recall  Category refers to the categorization of the single-word swap between the premise and hypothesis}
+\end{table}
+
+\begin{table}[!ht]
+    \centering
+    \tiny
+    \centering
+    \begin{tabular}{|p{0.1\textwidth}|p{0.05\textwidth}|p{0.05\textwidth}|p{0.05\textwidth}|p{0.05\textwidth}|p{0.05\textwidth}|}
+    \hline
+        \textbf{Category} & \textbf{Category Count} & \textbf{Accuracy \%} & \textbf{False Positives} & \textbf{False Neutrals} & \textbf{False Negatives} \\ \hline
+        \textbf{ln\_subject/object\_swap} & 1000 & 4.20 & 958 & 0 & 0 \\ \hline
+        \textbf{ln\_preposition} & 1000 & 14.40 & 852 & 4 & 0 \\ \hline
+        \textbf{ln\_relative\_clause} & 1000 & 10.60 & 893 & 1 & 0 \\ \hline
+        \textbf{ln\_passive} & 1000 & 1.00 & 990 & 0 & 0 \\ \hline
+        \textbf{ln\_conjunction} & 1000 & 23.30 & 767 & 0 & 0 \\ \hline
+        \textbf{le\_relative\_clause} & 1000 & 97.30 & 0 & 0 & 27 \\ \hline
+        \textbf{le\_around\_prepositional\_phrase} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{le\_around\_relative\_clause} & 1000 & 96.40 & 0 & 0 & 36 \\ \hline
+        \textbf{le\_conjunction} & 1000 & 90.30 & 0 & 0 & 97 \\ \hline
+        \textbf{le\_passive} & 1000 & 96.10 & 0 & 0 & 39 \\ \hline
+        \textbf{Lexical Overlap Total} & 10000 & 53.36 & 4460 & 5 & 199 \\ \hline
+        \textbf{sn\_NP/S} & 1000 & 0.00 & 1000 & 0 & 0 \\ \hline
+        \textbf{sn\_PP\_on\_subject} & 1000 & 2.00 & 980 & 0 & 0 \\ \hline
+        \textbf{sn\_relative\_clause\_on\_subject} & 1000 & 2.00 & 980 & 0 & 0 \\ \hline
+        \textbf{sn\_past\_participle} & 1000 & 0.00 & 1000 & 0 & 0 \\ \hline
+        \textbf{sn\_NP/Z} & 1000 & 4.80 & 952 & 0 & 0 \\ \hline
+        \textbf{se\_conjunction} & 1000 & 98.90 & 0 & 0 & 11 \\ \hline
+        \textbf{se\_adjective} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{se\_understood\_object} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{se\_relative\_clause\_on\_obj} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{se\_PP\_on\_obj} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{Subsequence Total} & 10000 & 50.77 & 4912 & 0 & 11 \\ \hline
+        \textbf{cn\_embedded\_under\_if} & 1000 & 8.30 & 917 & 0 & 0 \\ \hline
+        \textbf{cn\_after\_if\_clause} & 1000 & 0.00 & 1000 & 0 & 0 \\ \hline
+        \textbf{cn\_embedded\_under\_verb} & 1000 & 0.20 & 998 & 0 & 0 \\ \hline
+        \textbf{cn\_disjunction} & 1000 & 8.90 & 911 & 0 & 0 \\ \hline
+        \textbf{cn\_adverb} & 1000 & 0.00 & 1000 & 0 & 0 \\ \hline
+        \textbf{ce\_embedded\_under\_since} & 1000 & 99.70 & 0 & 0 & 3 \\ \hline
+        \textbf{ce\_after\_since\_clause} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{ce\_embedded\_under\_verb} & 1000 & 86.30 & 0 & 0 & 137 \\ \hline
+        \textbf{ce\_conjunction} & 1000 & 99.60 & 0 & 0 & 4 \\ \hline
+        \textbf{ce\_adverb} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{Constituent Total} & 10000 & 50.30 & 4829 & 0 & 144 \\ \hline
+    \end{tabular}
+    \caption{\texttt{mccoy-etal-2019} ELECTRA-small (SNLI-trained) performance across the categories described by McCoy et al. (2019).}
+\end{table}
+
+\begin{table}[!ht]
+    \centering
+    \tiny
+    \centering
+    \begin{tabular}{|p{0.1\textwidth}|p{0.05\textwidth}|p{0.05\textwidth}|p{0.05\textwidth}|p{0.05\textwidth}|p{0.05\textwidth}|}
+    \hline
+        \textbf{Category} & \textbf{Category Count} & \textbf{Accuracy \%} & \textbf{False Positives} & \textbf{False Neutrals} & \textbf{False Negatives} \\ \hline
+        \textbf{ln\_subject/object\_swap} & 1000 & 8.50 & 915 & 0 & 0 \\ \hline
+        \textbf{ln\_preposition} & 1000 & 22.20 & 778 & 0 & 0 \\ \hline
+        \textbf{ln\_relative\_clause} & 1000 & 19.90 & 801 & 0 & 0 \\ \hline
+        \textbf{ln\_passive} & 1000 & 0.00 & 1000 & 0 & 0 \\ \hline
+        \textbf{ln\_conjunction} & 1000 & 37.70 & 623 & 0 & 0 \\ \hline
+        \textbf{le\_relative\_clause} & 1000 & 94.10 & 0 & 0 & 59 \\ \hline
+        \textbf{le\_around\_prepositional\_phrase} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{le\_around\_relative\_clause} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{le\_conjunction} & 1000 & 88.00 & 0 & 0 & 120 \\ \hline
+        \textbf{le\_passive} & 1000 & 99.60 & 0 & 0 & 4 \\ \hline
+        \textbf{Lexical Overlap Total} & 10000 & 57.00 & 4117 & 0 & 183 \\ \hline
+        \textbf{sn\_NP/S} & 1000 & 0.10 & 999 & 0 & 0 \\ \hline
+        \textbf{sn\_PP\_on\_subject} & 1000 & 2.50 & 975 & 0 & 0 \\ \hline
+        \textbf{sn\_relative\_clause\_on\_subject} & 1000 & 1.00 & 990 & 0 & 0 \\ \hline
+        \textbf{sn\_past\_participle} & 1000 & 0.60 & 994 & 0 & 0 \\ \hline
+        \textbf{sn\_NP/Z} & 1000 & 0.10 & 999 & 0 & 0 \\ \hline
+        \textbf{se\_conjunction} & 1000 & 99.20 & 0 & 0 & 8 \\ \hline
+        \textbf{se\_adjective} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{se\_understood\_object} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{se\_relative\_clause\_on\_obj} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{se\_PP\_on\_obj} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{Subsequence Total} & 10000 & 50.35 & 4957 & 0 & 8 \\ \hline
+        \textbf{cn\_embedded\_under\_if} & 1000 & 2.20 & 977 & 1 & 0 \\ \hline
+        \textbf{cn\_after\_if\_clause} & 1000 & 0.00 & 1000 & 0 & 0 \\ \hline
+        \textbf{cn\_embedded\_under\_verb} & 1000 & 0.00 & 1000 & 0 & 0 \\ \hline
+        \textbf{cn\_disjunction} & 1000 & 1.30 & 987 & 0 & 0 \\ \hline
+        \textbf{cn\_adverb} & 1000 & 0.00 & 1000 & 0 & 0 \\ \hline
+        \textbf{ce\_embedded\_under\_since} & 1000 & 98.80 & 0 & 0 & 12 \\ \hline
+        \textbf{ce\_after\_since\_clause} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{ce\_embedded\_under\_verb} & 1000 & 84.90 & 0 & 0 & 151 \\ \hline
+        \textbf{ce\_conjunction} & 1000 & 99.50 & 0 & 0 & 5 \\ \hline
+        \textbf{ce\_adverb} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{Constituent Total} & 10000 & 48.67 & 4964 & 1 & 168 \\ \hline
+    \end{tabular}
+    \caption{\texttt{mccoy-etal-2019} ELECTRA-small (SNLI-trained with 5k textfooler textattacks) performance across the categories described by McCoy et al. (2019).}
+\end{table}
+
+\begin{table}[!ht]
+    \tiny
+    \centering
+    \begin{tabular}{|p{0.1\textwidth}|p{0.05\textwidth}|p{0.05\textwidth}|p{0.05\textwidth}|p{0.05\textwidth}|p{0.05\textwidth}|}
+    \hline
+        \textbf{Category} & \textbf{Category Count} & \textbf{Accuracy \%} & \textbf{False Positives} & \textbf{False Neutrals} & \textbf{False Negatives} \\ \hline
+        \textbf{ln\_subject/object\_swap} & 1000 & 1.30 & 987 & 0 & 0 \\ \hline
+        \textbf{ln\_preposition} & 1000 & 7.80 & 922 & 0 & 0 \\ \hline
+        \textbf{ln\_relative\_clause} & 1000 & 2.80 & 972 & 0 & 0 \\ \hline
+        \textbf{ln\_passive} & 1000 & 0.00 & 1000 & 0 & 0 \\ \hline
+        \textbf{ln\_conjunction} & 1000 & 16.70 & 833 & 0 & 0 \\ \hline
+        \textbf{le\_relative\_clause} & 1000 & 96.00 & 0 & 0 & 40 \\ \hline
+        \textbf{le\_around\_prepositional\_phrase} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{le\_around\_relative\_clause} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{le\_conjunction} & 1000 & 94.70 & 0 & 0 & 53 \\ \hline
+        \textbf{le\_passive} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{Lexical Overlap Total} & 10000 & 51.93 & 4714 & 0 & 93 \\ \hline
+        \textbf{sn\_NP/S} & 1000 & 0.00 & 1000 & 0 & 0 \\ \hline
+        \textbf{sn\_PP\_on\_subject} & 1000 & 2.60 & 974 & 0 & 0 \\ \hline
+        \textbf{sn\_relative\_clause\_on\_subject} & 1000 & 0.10 & 999 & 0 & 0 \\ \hline
+        \textbf{sn\_past\_participle} & 1000 & 1.00 & 990 & 0 & 0 \\ \hline
+        \textbf{sn\_NP/Z} & 1000 & 0.00 & 1000 & 0 & 0 \\ \hline
+        \textbf{se\_conjunction} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{se\_adjective} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{se\_understood\_object} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{se\_relative\_clause\_on\_obj} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{se\_PP\_on\_obj} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{Subsequence Total} & 10000 & 50.37 & 4963 & 0 & 0 \\ \hline
+        \textbf{cn\_embedded\_under\_if} & 1000 & 0.00 & 1000 & 0 & 0 \\ \hline
+        \textbf{cn\_after\_if\_clause} & 1000 & 0.00 & 1000 & 0 & 0 \\ \hline
+        \textbf{cn\_embedded\_under\_verb} & 1000 & 0.00 & 1000 & 0 & 0 \\ \hline
+        \textbf{cn\_disjunction} & 1000 & 0.40 & 996 & 0 & 0 \\ \hline
+        \textbf{cn\_adverb} & 1000 & 0.00 & 1000 & 0 & 0 \\ \hline
+        \textbf{ce\_embedded\_under\_since} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{ce\_after\_since\_clause} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{ce\_embedded\_under\_verb} & 1000 & 97.60 & 0 & 0 & 24 \\ \hline
+        \textbf{ce\_conjunction} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{ce\_adverb} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{Constituent Total} & 10000 & 49.80 & 4996 & 0 & 24 \\ \hline
+    \end{tabular}
+    \caption{\texttt{mccoy-etal-2019} ELECTRA-small (SNLI-trained with 50k textfooler textattacks) performance across the categories described by McCoy et al. (2019).}
+\end{table}
+
+\begin{table}[!ht]
+    \tiny
+    \centering
+    \begin{tabular}{|p{0.1\textwidth}|p{0.05\textwidth}|p{0.05\textwidth}|p{0.05\textwidth}|p{0.05\textwidth}|p{0.05\textwidth}|}
+    \hline
+        \textbf{Category} & \textbf{Category Count} & \textbf{Accuracy \%} & \textbf{False Positives} & \textbf{False Neutrals} & \textbf{False Negatives} \\ \hline
+        \textbf{ln\_subject/object\_swap} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{ln\_preposition} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{ln\_relative\_clause} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{ln\_passive} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{ln\_conjunction} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{le\_relative\_clause} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{le\_around\_prepositional\_phrase} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{le\_around\_relative\_clause} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{le\_conjunction} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{le\_passive} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{Lexical Overlap Total} & 4000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{sn\_NP/S} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{sn\_PP\_on\_subject} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{sn\_relative\_clause\_on\_subject} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{sn\_past\_participle} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{sn\_NP/Z} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{se\_conjunction} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{se\_adjective} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{se\_understood\_object} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{se\_relative\_clause\_on\_obj} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{se\_PP\_on\_obj} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{Subsequence Total} & 4000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{cn\_embedded\_under\_if} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{cn\_after\_if\_clause} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{cn\_embedded\_under\_verb} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{cn\_disjunction} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{cn\_adverb} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{ce\_embedded\_under\_since} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{ce\_after\_since\_clause} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{ce\_embedded\_under\_verb} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{ce\_conjunction} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{ce\_adverb} & 1000 & 100.00 & 0 & 0 & 0 \\ \hline
+        \textbf{Constituent Total} & 4000 & 100.00 & 0 & 0 & 0 \\ \hline
+    \end{tabular}
+    \caption{\texttt{mccoy-etal-2019} 12k subset ELECTRA-small (SNLI-trained augmented with 18k\texttt{mccoy-etal-2019} examples) performance across the categories described by McCoy et al. (2019).}
+\end{table}
